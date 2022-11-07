@@ -5,7 +5,7 @@
 #include <string.h>
 #define BUFSIZE 512
 
-int main(int argc, TCHAR* argv[])
+int main(int argc, char* argv[])
 {
     HANDLE hPipe;
     char lpvMessage[BUFSIZE] = "Default message from client.";
