@@ -1,19 +1,18 @@
 ﻿#include <windows.h> 
 #include <stdio.h> 
-#include <tchar.h>
 #include <strsafe.h>
 
 #define BUFSIZE 512
 
 DWORD WINAPI InstanceThread(LPVOID);
-VOID GetAnswerToRequest(LPTSTR, LPTSTR, LPDWORD);
+VOID GetAnswerToRequest(LPSTR, LPSTR, LPDWORD);
 
-int _tmain(VOID)
+int main(VOID)
 {
     BOOL   fConnected = FALSE;
     DWORD  dwThreadId = 0;
     HANDLE hPipe = INVALID_HANDLE_VALUE, hThread = NULL;
-    LPCTSTR lpszPipename = TEXT("\\\\.\\pipe\\mynamedpipe");
+    LPCSTR lpszPipename = "\\\\.\\pipe\\mynamedpipe";
 
     // The main loop creates an instance of the named pipe and 
     // then waits for a client to connect to it. When the client 
@@ -21,10 +20,10 @@ int _tmain(VOID)
     // with that client, and this loop is free to wait for the
     // next client connect request. It is an infinite loop.
 
-    for (;;)
-    {
-        _tprintf(TEXT("\nPipe Server: Main thread awaiting client connection on %s\n"), lpszPipename);
-        hPipe = CreateNamedPipe(
+    for (;;) {
+        printf("\nPipe Server: Main thread awaiting client connection on %s\n",
+            lpszPipename);
+        hPipe = CreateNamedPipeA(
             lpszPipename,             // pipe name 
             PIPE_ACCESS_DUPLEX,       // read/write access 
             PIPE_TYPE_MESSAGE |       // message type pipe 
@@ -36,9 +35,9 @@ int _tmain(VOID)
             0,                        // client time-out 
             NULL);                    // default security attribute 
 
-        if (hPipe == INVALID_HANDLE_VALUE)
-        {
-            _tprintf(TEXT("CreateNamedPipe failed, GLE=%d.\n"), GetLastError());
+        if (hPipe == INVALID_HANDLE_VALUE) {
+            printf("CreateNamedPipe failed, GLE=%d.\n",
+                GetLastError());
             return -1;
         }
 
@@ -49,8 +48,7 @@ int _tmain(VOID)
         fConnected = ConnectNamedPipe(hPipe, NULL) ?
             TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
 
-        if (fConnected)
-        {
+        if (fConnected) {
             printf("Client connected, creating a processing thread.\n");
 
             // Create a thread for this client. 
@@ -62,9 +60,9 @@ int _tmain(VOID)
                 0,                 // not suspended 
                 &dwThreadId);      // returns thread ID 
 
-            if (hThread == NULL)
-            {
-                _tprintf(TEXT("CreateThread failed, GLE=%d.\n"), GetLastError());
+            if (hThread == NULL) {
+                printf("CreateThread failed, GLE=%d.\n",
+                    GetLastError());
                 return -1;
             }
             else CloseHandle(hThread);
@@ -85,8 +83,8 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
 // client connections.
 {
     HANDLE hHeap = GetProcessHeap();
-    TCHAR* pchRequest = (TCHAR*)HeapAlloc(hHeap, 0, BUFSIZE * sizeof(TCHAR));
-    TCHAR* pchReply = (TCHAR*)HeapAlloc(hHeap, 0, BUFSIZE * sizeof(TCHAR));
+    char* pchRequest = (char*)HeapAlloc(hHeap, 0, BUFSIZE);
+    char* pchReply = (char*)HeapAlloc(hHeap, 0, BUFSIZE);
 
     DWORD cbBytesRead = 0, cbReplyBytes = 0, cbWritten = 0;
     BOOL fSuccess = FALSE;
@@ -95,8 +93,7 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
     // Do some extra error checking since the app will keep running even if this
     // thread fails.
 
-    if (lpvParam == NULL)
-    {
+    if (lpvParam == NULL) {
         printf("\nERROR - Pipe Server Failure:\n");
         printf("   InstanceThread got an unexpected NULL value in lpvParam.\n");
         printf("   InstanceThread exitting.\n");
@@ -105,8 +102,7 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
         return (DWORD)-1;
     }
 
-    if (pchRequest == NULL)
-    {
+    if (pchRequest == NULL) {
         printf("\nERROR - Pipe Server Failure:\n");
         printf("   InstanceThread got an unexpected NULL heap allocation.\n");
         printf("   InstanceThread exitting.\n");
@@ -114,8 +110,7 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
         return (DWORD)-1;
     }
 
-    if (pchReply == NULL)
-    {
+    if (pchReply == NULL) {
         printf("\nERROR - Pipe Server Failure:\n");
         printf("   InstanceThread got an unexpected NULL heap allocation.\n");
         printf("   InstanceThread exitting.\n");
@@ -127,12 +122,10 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
     printf("InstanceThread created, receiving and processing messages.\n");
 
     // The thread's parameter is a handle to a pipe object instance. 
-
     hPipe = (HANDLE)lpvParam;
 
     // Loop until done reading
-    while (1)
-    {
+    while (1) {
         // Read client requests from the pipe. This simplistic code only allows messages
         // up to BUFSIZE characters in length.
         fSuccess = ReadFile(
@@ -142,16 +135,12 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
             &cbBytesRead, // number of bytes read 
             NULL);        // not overlapped I/O 
 
-        if (!fSuccess || cbBytesRead == 0)
-        {
+        if (!fSuccess || cbBytesRead == 0) {
             if (GetLastError() == ERROR_BROKEN_PIPE)
-            {
-                _tprintf(TEXT("InstanceThread: client disconnected.\n"));
-            }
+                printf("InstanceThread: client disconnected.\n");
             else
-            {
-                _tprintf(TEXT("InstanceThread ReadFile failed, GLE=%d.\n"), GetLastError());
-            }
+                printf("InstanceThread ReadFile failed, GLE=%d.\n",
+                    GetLastError());
             break;
         }
 
@@ -166,9 +155,9 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
             &cbWritten,   // number of bytes written 
             NULL);        // not overlapped I/O 
 
-        if (!fSuccess || cbReplyBytes != cbWritten)
-        {
-            _tprintf(TEXT("InstanceThread WriteFile failed, GLE=%d.\n"), GetLastError());
+        if (!fSuccess || cbReplyBytes != cbWritten) {
+            printf("InstanceThread WriteFile failed, GLE=%d.\n",
+                GetLastError());
             break;
         }
     }
@@ -188,8 +177,8 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
     return 1;
 }
 
-VOID GetAnswerToRequest(LPTSTR pchRequest,
-    LPTSTR pchReply,
+VOID GetAnswerToRequest(LPSTR pchRequest,
+    LPSTR pchReply,
     LPDWORD pchBytes)
     // This routine is a simple function to print the client request to the console
     // and populate the reply buffer with a default data string. This is where you
@@ -197,15 +186,16 @@ VOID GetAnswerToRequest(LPTSTR pchRequest,
     // of an instance thread. Keep in mind the main thread will continue to wait for
     // and receive other client connections while the instance thread is working.
 {
-    _tprintf(TEXT("Client Request String:\"%s\"\n"), pchRequest);
+    printf("Client Request String:\"%s\"\n",
+        pchRequest);
 
     // Check the outgoing message to make sure it's not too long for the buffer.
-    if (FAILED(StringCchCopy(pchReply, BUFSIZE, TEXT("default answer from server"))))
-    {
+    if (FAILED(StringCchCopyA(pchReply, BUFSIZE,
+        "default answer from server"))) {
         *pchBytes = 0;
         pchReply[0] = 0;
         printf("StringCchCopy failed, no outgoing message.\n");
         return;
     }
-    *pchBytes = (lstrlen(pchReply) + 1) * sizeof(TCHAR);
+    *pchBytes = (strlen(pchReply) + 1) * sizeof(char);
 }
