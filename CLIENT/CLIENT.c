@@ -56,18 +56,21 @@ int main(int argc, char* argv[])
             GetLastError());
         return -1;
     }
+
     int run = 1;
     // Send a message to the pipe server. 
     while (run) {
         printf("\nEnter the message to server: \"%s\"\n"); 
         scanf_s("%s", lpvMessage, BUFSIZE);
 
-        if (strncmp((char*)lpvMessage, "close", strlen(lpvMessage))) {
+        if (strncmp(lpvMessage,
+            "close", strlen(lpvMessage)) == 0) {
+            
             printf("\nGoodbye!:)\n");
             goto exit;
             run--;
         }
-        cbToWrite = (strlen(lpvMessage) + 1) * sizeof(char*);
+        cbToWrite = (strlen(lpvMessage) + 1) * sizeof(char);
         printf("Sending %d byte message: \"%s\"\n",
             cbToWrite, lpvMessage);
 
@@ -111,6 +114,5 @@ exit:
     _getch();
 
     CloseHandle(hPipe);
-
     return 0;
 }
