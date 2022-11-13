@@ -139,6 +139,7 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
             BUFSIZE * sizeof(TCHAR), // size of buffer 
             &cbBytesRead, // number of bytes read 
             NULL);        // not overlapped I/O 
+        printf("client message:\t %s", pchRequest);
 
         if (!fSuccess || cbBytesRead == 0) {
             if (GetLastError() == ERROR_BROKEN_PIPE)
@@ -151,9 +152,6 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
 
         // Process the incoming message.
         //GetAnswerToRequest(pchRequest, pchReply, &cbReplyBytes);
-        char part[] = "client";
-        strcat(part, "\t%d:\t", n);
-        strcat(pchReply, part);
         // Write the reply to the pipe. 
         fSuccess = WriteFile(
             hPipe,        // handle to pipe 

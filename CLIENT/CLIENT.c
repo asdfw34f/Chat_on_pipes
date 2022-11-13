@@ -4,9 +4,12 @@
 #include <conio.h>
 #include <string.h>
 #define BUFSIZE 512
-
 int main(int argc, char* argv[])
 {
+    printf("ENTER UR NAME:\t");
+    char name[10] = { 0 };
+    scanf_s("%s", name, 10);
+    name[strlen(name)] = 0;
     HANDLE hPipe;
     char lpvMessage[BUFSIZE] = "Default message from client.";
     CHAR  chBuf[BUFSIZE];
@@ -60,20 +63,24 @@ int main(int argc, char* argv[])
     int run = 1;
     // Send a message to the pipe server. 
     while (run) {
-        printf("\nEnter the message to server: \"%s\"\n"); 
+        char temp_buffer[512] = { 0 };
+        printf("\nEnter the message to server:\t"); 
         scanf_s("%s", lpvMessage, BUFSIZE);
-
+        strcpy_s(temp_buffer, BUFSIZE, name);
+        strcat_s(temp_buffer, BUFSIZE, ":  ");
+        strcat_s(temp_buffer, BUFSIZE, lpvMessage);
+        //sprintf_s(temp_buffer, "%s:    %s", name, lpvMessage);
         if (strncmp(lpvMessage,
             "close", strlen(lpvMessage)) == 0) {
-            
+
             printf("\nGoodbye!:)\n");
             goto exit;
-            run--;
         }
+        memset(lpvMessage, 0, sizeof(lpvMessage));
+        strcpy_s(lpvMessage, BUFSIZE, temp_buffer);
         cbToWrite = (strlen(lpvMessage) + 1) * sizeof(char);
         printf("Sending %d byte message: \"%s\"\n",
             cbToWrite, lpvMessage);
-
         fSuccess = WriteFile(
             hPipe,                  // pipe handle 
             lpvMessage,             // message 
@@ -100,7 +107,7 @@ int main(int argc, char* argv[])
         if (!fSuccess && GetLastError() != ERROR_MORE_DATA)
             break;
 
-        printf("\"%s\"\n", chBuf);
+        printf("message: %s\n", chBuf);
     } while (!fSuccess);  // repeat loop if ERROR_MORE_DATA 
 
     if (!fSuccess) {
