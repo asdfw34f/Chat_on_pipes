@@ -4,10 +4,8 @@
 #include <strsafe.h>
 
 #define BUFSIZE 512
-int N = 1;
 
 DWORD WINAPI InstanceThread(LPVOID);
-//VOID GetAnswerToRequest(LPSTR, LPSTR, LPDWORD);
 
 int main(VOID)
 {
@@ -53,8 +51,6 @@ int main(VOID)
         if (fConnected) {
             printf("Client connected, creating a processing thread.\n");
 
-            N = 1 ? FALSE : N++; //number the client connected
-
             // Create a thread for this client. 
             hThread = CreateThread(
                 NULL,              // no security attribute 
@@ -86,12 +82,11 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
 // of this procedure to run concurrently, depending on the number of incoming
 // client connections.
 {
-    const int n = N;
     HANDLE hHeap = GetProcessHeap();
     char* pchRequest = (char*)HeapAlloc(hHeap, 0, BUFSIZE);
     char* pchReply = (char*)HeapAlloc(hHeap, 0, BUFSIZE);
 
-    DWORD cbBytesRead = 0, cbReplyBytes = 0, cbWritten = 0;
+    DWORD cbBytesRead = 0, cbReplyBytes = 0;
     BOOL fSuccess = FALSE;
     HANDLE hPipe = NULL;
 
@@ -139,7 +134,7 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
             BUFSIZE * sizeof(TCHAR), // size of buffer 
             &cbBytesRead, // number of bytes read 
             NULL);        // not overlapped I/O 
-        printf("client message:\t %s", pchRequest);
+        printf("client message:\t %s\n", pchRequest);
 
         if (!fSuccess || cbBytesRead == 0) {
             if (GetLastError() == ERROR_BROKEN_PIPE)
@@ -147,23 +142,7 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
             else
                 printf("InstanceThread ReadFile failed, GLE=%d.\n",
                     GetLastError());
-            break;
-        }
-
-        // Process the incoming message.
-        //GetAnswerToRequest(pchRequest, pchReply, &cbReplyBytes);
-        // Write the reply to the pipe. 
-        fSuccess = WriteFile(
-            hPipe,        // handle to pipe 
-            pchReply,     // buffer to write from 
-            cbReplyBytes, // number of bytes to write 
-            &cbWritten,   // number of bytes written 
-            NULL);        // not overlapped I/O 
-
-        if (!fSuccess || cbReplyBytes != cbWritten) {
-            printf("InstanceThread WriteFile failed, GLE=%d.\n",
-                GetLastError());
-            break;
+            
         }
     }
 
@@ -181,26 +160,3 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
     printf("InstanceThread exiting.\n");
     return 1;
 }
-
-//VOID GetAnswerToRequest(LPSTR pchRequest,
-//    LPSTR pchReply,
-//    LPDWORD pchBytes)
-//    // This routine is a simple function to print the client request to the console
-//    // and populate the reply buffer with a default data string. This is where you
-//    // would put the actual client request processing code that runs in the context
-//    // of an instance thread. Keep in mind the main thread will continue to wait for
-//    // and receive other client connections while the instance thread is working.
-//{
-//    printf("Client Request String:\"%s\"\n",
-//        pchRequest);
-//
-//    // Check the outgoing message to make sure it's not too long for the buffer.
-//    if (FAILED(StringCchCopyA(pchReply, BUFSIZE,
-//        "default answer from server"))) {
-//        *pchBytes = 0;
-//        pchReply[0] = 0;
-//        printf("StringCchCopy failed, no outgoing message.\n");
-//        return;
-//    }
-//    *pchBytes = (strlen(pchReply) + 1) * sizeof(char);
-//}
