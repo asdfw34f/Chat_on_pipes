@@ -2,7 +2,6 @@
 #include <windows.h> 
 #include <stdio.h> 
 #include <strsafe.h>
-
 #define BUFSIZE 512
 
 DWORD WINAPI InstanceThread(LPVOID);
@@ -13,7 +12,8 @@ int main(VOID)
     DWORD  dwThreadId = 0;
     HANDLE hPipe = INVALID_HANDLE_VALUE, hThread = NULL;
     LPCSTR lpszPipename = "\\\\.\\pipe\\mynamedpipe";
-
+    char  chBuf[BUFSIZE] = { 0 }, lpvMessage[BUFSIZE] = { 0 };
+    DWORD  cbRead = NULL, cbWrite = NULL;
     // The main loop creates an instance of the named pipe and 
     // then waits for a client to connect to it. When the client 
     // connects, a thread is created to handle communications 
@@ -82,10 +82,7 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
 // of this procedure to run concurrently, depending on the number of incoming
 // client connections.
 {
-    HANDLE hHeap = GetProcessHeap();
-    char* pchRequest = (char*)HeapAlloc(hHeap, 0, BUFSIZE);
-    char* pchReply = (char*)HeapAlloc(hHeap, 0, BUFSIZE);
-
+    char pchRequest[BUFSIZE];
     DWORD cbBytesRead = 0, cbReplyBytes = 0;
     BOOL fSuccess = FALSE;
     HANDLE hPipe = NULL;
@@ -97,24 +94,6 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
         printf("\nERROR - Pipe Server Failure:\n");
         printf("\tInstanceThread got an unexpected NULL value in lpvParam.\n");
         printf("\tInstanceThread exitting.\n");
-        if (pchReply != NULL) HeapFree(hHeap, 0, pchReply);
-        if (pchRequest != NULL) HeapFree(hHeap, 0, pchRequest);
-        return (DWORD)-1;
-    }
-
-    if (pchRequest == NULL) {
-        printf("\nERROR - Pipe Server Failure:\n");
-        printf("\tInstanceThread got an unexpected NULL heap allocation.\n");
-        printf("\tInstanceThread exitting.\n");
-        if (pchReply != NULL) HeapFree(hHeap, 0, pchReply);
-        return (DWORD)-1;
-    }
-
-    if (pchReply == NULL) {
-        printf("\nERROR - Pipe Server Failure:\n");
-        printf("\tInstanceThread got an unexpected NULL heap allocation.\n");
-        printf("\tInstanceThread exitting.\n");
-        if (pchRequest != NULL) HeapFree(hHeap, 0, pchRequest);
         return (DWORD)-1;
     }
 
@@ -126,24 +105,42 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
 
     // Loop until done reading
     while (1) {
-        // Read client requests from the pipe. This simplistic code only allows messages
+        // Read client requests from the pipe. 
+        // This simplistic code only allows messages
         // up to BUFSIZE characters in length.
+        memset(pchRequest, 0, sizeof(pchRequest));
+        cbBytesRead = 0;
+
         fSuccess = ReadFile(
             hPipe,        // handle to pipe 
             pchRequest,    // buffer to receive data 
-            BUFSIZE * sizeof(TCHAR), // size of buffer 
+            BUFSIZE * sizeof(CHAR), // size of buffer 
             &cbBytesRead, // number of bytes read 
             NULL);        // not overlapped I/O 
-        printf("client message:\t %s\n", pchRequest);
+        if (cbBytesRead == 0)
+            continue;
+        else if (cbBytesRead > 0)
+        {
+            memset(pchRequest, 0, sizeof(pchRequest));
+            cbBytesRead = 0;
 
-        if (!fSuccess || cbBytesRead == 0) {
+            printf("\t%s\n", pchRequest);
+            BOOL fSuccessA = WriteFile(
+                hPipe,        // handle to pipe 
+                pchRequest,    // buffer to receive data 
+                NULL, // size of buffer 
+                &cbBytesRead, // number of bytes read 
+                NULL);        // not overlapped I/O 
+            if (!fSuccessA)
+                printf("InstanceThread WriteFile failed, GLE=%d.\n",
+                    GetLastError());
+        }
+        else
             if (GetLastError() == ERROR_BROKEN_PIPE)
                 printf("InstanceThread: client disconnected.\n");
             else
                 printf("InstanceThread ReadFile failed, GLE=%d.\n",
                     GetLastError());
-            
-        }
     }
 
     // Flush the pipe to allow the client to read the pipe's contents 
@@ -153,9 +150,6 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
     FlushFileBuffers(hPipe);
     DisconnectNamedPipe(hPipe);
     CloseHandle(hPipe);
-
-    HeapFree(hHeap, 0, pchRequest);
-    HeapFree(hHeap, 0, pchReply);
 
     printf("InstanceThread exiting.\n");
     return 1;
