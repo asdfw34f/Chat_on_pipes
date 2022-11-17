@@ -120,21 +120,7 @@ DWORD WINAPI InstanceThread(LPVOID lpvParam)
         if (cbBytesRead == 0)
             continue;
         else if (cbBytesRead > 0)
-        {
-            memset(pchRequest, 0, sizeof(pchRequest));
-            cbBytesRead = 0;
-
             printf("\t%s\n", pchRequest);
-            BOOL fSuccessA = WriteFile(
-                hPipe,        // handle to pipe 
-                pchRequest,    // buffer to receive data 
-                NULL, // size of buffer 
-                &cbBytesRead, // number of bytes read 
-                NULL);        // not overlapped I/O 
-            if (!fSuccessA)
-                printf("InstanceThread WriteFile failed, GLE=%d.\n",
-                    GetLastError());
-        }
         else
             if (GetLastError() == ERROR_BROKEN_PIPE)
                 printf("InstanceThread: client disconnected.\n");

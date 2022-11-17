@@ -1,61 +1,17 @@
 ﻿#define _NO_CRT_STDIO
+#define _CRT_SECURE_NO_WARNINGS
 #include <windows.h> 
 #include <stdio.h>
 #include <conio.h>
 #include <string.h>
 #define BUFSIZE 512
-BOOL threadLock = FALSE;
-/*
-DWORD WINAPI ReadThread(LPVOID lpPipe)
-{
-    char  chBuf[BUFSIZE] = { 0 }, lpvMessage[BUFSIZE] = { 0 };
-    DWORD  cbRead = NULL, cbWrite = NULL;
-    BOOL fSuccess;
-    HANDLE hPipe = (HANDLE)lpPipe;
 
-    while (threadLock == TRUE) {
-        // Preparing the buffer to reading
-        memset(chBuf, 0, sizeof(chBuf));
-        cbRead = 0;
-
-        //  Reading
-        fSuccess = ReadFile(
-            hPipe,    // pipe handle 
-            chBuf,    // buffer to receive reply 
-            BUFSIZE * sizeof(char),  // size of buffer 
-            &cbRead,  // number of bytes read 
-            NULL);    // not overlapped 
-        if (cbRead > 0) {
-            // Print a mesage
-            printf("Message:\t%s\n", chBuf);
-
-            //  Clean file after to read
-            memset(lpvMessage, 0, sizeof(lpvMessage));
-
-            BOOL fSuccessA = WriteFile(
-                hPipe,        // handle to pipe 
-                lpvMessage,    // buffer to receive data 
-                NULL, // size of buffer 
-                &cbWrite, // number of bytes read 
-                NULL);        // not overlapped I/O 
-            if (!fSuccessA)
-                printf("InstanceThread WriteFile failed, GLE=%d.\n",
-                    GetLastError());
-        }
-        else if (!fSuccess && GetLastError() != ERROR_MORE_DATA) {
-            printf("ReadFile to pipe failed. GLE=%d\n",
-                GetLastError());
-            break;
-        }
-    }
-}
-*/
 int main(int argc, char* argv[])
 {
     HANDLE hPipe, hThread;
     BOOL fSuccess = FALSE;
     DWORD  cbRead, cbToWrite, cbWritten, dwMode, dwThreadId;
-    char lpvMessage[BUFSIZE] = { 0 };
+    char lpvMessage[BUFSIZE] = { 0 }, chBuf[BUFSIZE] = { 0 };
     char name[10] = { 0 };
     LPCSTR lpszPipename = "\\\\.\\pipe\\mynamedpipe";
 
@@ -107,16 +63,6 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-
-    threadLock = TRUE;
-   /* hThread = CreateThread(
-        NULL,              // no security attribute 
-        0,                 // default stack size 
-        ReadThread,    // thread proc
-        (LPVOID)hPipe,    // thread parameter 
-        0,                 // not suspended 
-        &dwThreadId);      // returns thread ID 
-   */
     // Send a message to the pipe server. 
     while (1) {
 
@@ -148,14 +94,50 @@ int main(int argc, char* argv[])
         if (!fSuccess) {
             printf("WriteFile to pipe failed. GLE=%d\n",
                 GetLastError());
-            threadLock = FALSE;
             return -1;
         }
         else {
             printf("\nMessage sent to server, receiving reply as follows:\n");
         }
-    }
-    threadLock = FALSE;
+
+        //////////////////////////////////////////////////////////////
+        // Preparing the buffer to reading                          //
+        memset(chBuf, 0, sizeof(chBuf));                            //
+        cbRead = 0;                                                 //
+                                                                    //
+        //  Reading                                                 //
+        fSuccess = ReadFile(                                        //
+            hPipe,    // pipe handle                                //
+            chBuf,    // buffer to receive reply                    //
+            BUFSIZE * sizeof(char),  // size of buffer              //
+            &cbRead,  // number of bytes read                       //
+            NULL);    // not overlapped                             //
+                                                                    //
+        if (cbRead > 0) {                                           //
+            const int countName = (int const)strlen(name);          //
+            char chBufA[10] = {0};                                  //
+            strncpy(chBufA, chBuf, strlen(name));                   //
+            if (chBufA == name)                                     //
+                continue;                                           //
+                // Print a mesage                                   //
+            printf("Message:\t%s\n", chBuf);                        //
+                                                                    //
+            //  Clean file after to read                            //
+            memset(lpvMessage, 0, sizeof(lpvMessage));              //
+            cbToWrite = (strlen(lpvMessage) + 1) * sizeof(char);    //
+            cbWritten = NULL;                                       //
+                                                                    //
+            fSuccess = WriteFile(                                   //
+                hPipe,        // handle to pipe                     //
+                lpvMessage,    // buffer to receive data            //
+                NULL, // size of buffer                             //
+                &cbWritten, // number of bytes read                 //
+                NULL);        // not overlapped I/O                 //
+            if (!fSuccess)                                          //
+                printf("InstanceThread WriteFile failed, GLE=%d.\n",//
+                    GetLastError());                                //
+        }                                                           //
+    } ////////////////////////////////////////////////////////////////
 
     printf("\n<End of message, press ENTER to terminate connection and exit>\n");
     _getch();
