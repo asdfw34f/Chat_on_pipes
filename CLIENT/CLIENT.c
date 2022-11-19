@@ -4,15 +4,46 @@
 #include <stdio.h>
 #include <conio.h>
 #include <string.h>
+#include <WinBase.h>
 #define BUFSIZE 512
+char name[10] = { 0 };
+HANDLE hMutex;
+
+DWORD WINAPI ReadThread(LPVOID lpPipe)
+{
+   // WaitForSingleObject(hMutex, INFINITE);
+
+    char  chBuf[BUFSIZE] = { 0 }, lpvMessage[BUFSIZE] = { 0 };
+    DWORD  cbRead = NULL, cbWritten, cbWrite = NULL, cbToWrite;
+    BOOL fSuccess;
+    HANDLE hPipe = (HANDLE)lpPipe;
+
+
+        // Preparing the buffer to reading     
+        memset(chBuf, 0, sizeof(chBuf));
+        cbRead = 0;
+
+        //  Reading                                                 
+        fSuccess = ReadFile(
+            hPipe,    // pipe handle                                                      
+            chBuf,    // buffer to receive reply                                          
+            BUFSIZE * sizeof(char),  // size of buffer                                    
+            &cbRead,  // number of bytes read                                             
+            NULL);    // not overlapped           
+        if (cbRead > 0) {
+            // Print a mesage                                                
+            printf("Message:\t%s\n", chBuf);
+         //   ReleaseMutex(hMutex);
+        }
+     //   ReleaseMutex(hMutex);
+}
 
 int main(int argc, char* argv[])
 {
-    HANDLE hPipe, hThread;
+    HANDLE hPipe, hThread = 0;
     BOOL fSuccess = FALSE;
-    DWORD  cbRead, cbToWrite, cbWritten, dwMode, dwThreadId;
-    char lpvMessage[BUFSIZE] = { 0 }, chBuf[BUFSIZE] = { 0 };
-    char name[10] = { 0 };
+    DWORD  cbToWrite, cbWritten, dwMode, dwThreadId;
+    char lpvMessage[BUFSIZE] = { 0 };
     LPCSTR lpszPipename = "\\\\.\\pipe\\mynamedpipe";
 
     //  Preparing name client'
@@ -63,8 +94,12 @@ int main(int argc, char* argv[])
         return -1;
     }
 
+    // Create a Mutex to lock resurses
+    hMutex = CreateMutexW(0, FALSE, 0);
+   
     // Send a message to the pipe server. 
     while (1) {
+      //  WaitForSingleObject(hMutex, INFINITE);
 
         // preparing a signed message
         memset(lpvMessage, 0, sizeof(lpvMessage));
@@ -73,6 +108,7 @@ int main(int argc, char* argv[])
         if (strncmp(lpvMessage, "close",
             strlen(lpvMessage)) == 0)
             break;
+
         char temp_buffer[BUFSIZE] = { 0 };
         strcpy_s(temp_buffer, BUFSIZE, name);
         strcat_s(temp_buffer, BUFSIZE, ":  ");
@@ -96,53 +132,21 @@ int main(int argc, char* argv[])
                 GetLastError());
             return -1;
         }
-        else {
-            printf("\nMessage sent to server, receiving reply as follows:\n");
-        }
+        printf("\nMessage sent to server, receiving reply as follows:\n");
 
-        //////////////////////////////////////////////////////////////
-        // Preparing the buffer to reading                          //
-        memset(chBuf, 0, sizeof(chBuf));                            //
-        cbRead = 0;                                                 //
-                                                                    //
-        //  Reading                                                 //
-        fSuccess = ReadFile(                                        //
-            hPipe,    // pipe handle                                //
-            chBuf,    // buffer to receive reply                    //
-            BUFSIZE * sizeof(char),  // size of buffer              //
-            &cbRead,  // number of bytes read                       //
-            NULL);    // not overlapped                             //
-                                                                    //
-        if (cbRead > 0) {                                           //
-            const int countName = (int const)strlen(name);          //
-            char chBufA[10] = {0};                                  //
-            strncpy(chBufA, chBuf, strlen(name));                   //
-            if (chBufA == name)                                     //
-                continue;                                           //
-                // Print a mesage                                   //
-            printf("Message:\t%s\n", chBuf);                        //
-                                                                    //
-            //  Clean file after to read                            //
-            memset(lpvMessage, 0, sizeof(lpvMessage));              //
-            cbToWrite = (strlen(lpvMessage) + 1) * sizeof(char);    //
-            cbWritten = NULL;                                       //
-                                                                    //
-            fSuccess = WriteFile(                                   //
-                hPipe,        // handle to pipe                     //
-                lpvMessage,    // buffer to receive data            //
-                NULL, // size of buffer                             //
-                &cbWritten, // number of bytes read                 //
-                NULL);        // not overlapped I/O                 //
-            if (!fSuccess)                                          //
-                printf("InstanceThread WriteFile failed, GLE=%d.\n",//
-                    GetLastError());                                //
-        }                                                           //
-    } ////////////////////////////////////////////////////////////////
+       // ReleaseMutex(hMutex);
 
+        hThread = CreateThread(0, 0, ReadThread, (LPVOID)hPipe, 0, &dwThreadId);
+        if (hThread == NULL)
+            return -1;
+
+    }
     printf("\n<End of message, press ENTER to terminate connection and exit>\n");
     _getch();
     printf("\nGoodbye!:)\n");
 
+    if (hThread != NULL)
+        CloseHandle(hThread);
     CloseHandle(hPipe);
     return 0;
 }
