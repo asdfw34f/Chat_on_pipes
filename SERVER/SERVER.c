@@ -191,7 +191,6 @@ int _tmain(VOID)
 
             fSuccess = WriteFile(
                 Pipe[i == 0 ? 1 : 0].hPipeInst,
-                //i == 0 ? Pipe[1].hPipeInst : Pipe[0].hPipeInst,
                 Pipe[i].chReply,
                 Pipe[i].cbToWrite,
                 &cbRet,

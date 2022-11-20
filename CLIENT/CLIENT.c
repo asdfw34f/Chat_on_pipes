@@ -11,31 +11,29 @@ HANDLE hMutex;
 
 DWORD WINAPI ReadThread(LPVOID lpPipe)
 {
-   // WaitForSingleObject(hMutex, INFINITE);
-
+    WaitForSingleObject(hMutex, INFINITE);
     char  chBuf[BUFSIZE] = { 0 }, lpvMessage[BUFSIZE] = { 0 };
     DWORD  cbRead = NULL, cbWritten, cbWrite = NULL, cbToWrite;
     BOOL fSuccess;
     HANDLE hPipe = (HANDLE)lpPipe;
 
+    // Preparing the buffer to reading     
+    memset(chBuf, 0, sizeof(chBuf));
+    cbRead = 0;
+    
+    //  Reading
+    fSuccess = ReadFile(
+        hPipe,    // pipe handle
+        chBuf,    // buffer to receive reply
+        BUFSIZE * sizeof(char),  // size of buffer                                    
+        &cbRead,  // number of bytes read                                             
+        NULL);    // not overlapped           
+    if (cbRead > 0) {
+        // Print a mesage                                                
+        printf("Message:\t%s\n", chBuf);
 
-        // Preparing the buffer to reading     
-        memset(chBuf, 0, sizeof(chBuf));
-        cbRead = 0;
-
-        //  Reading                                                 
-        fSuccess = ReadFile(
-            hPipe,    // pipe handle                                                      
-            chBuf,    // buffer to receive reply                                          
-            BUFSIZE * sizeof(char),  // size of buffer                                    
-            &cbRead,  // number of bytes read                                             
-            NULL);    // not overlapped           
-        if (cbRead > 0) {
-            // Print a mesage                                                
-            printf("Message:\t%s\n", chBuf);
-         //   ReleaseMutex(hMutex);
-        }
-     //   ReleaseMutex(hMutex);
+    }
+    ReleaseMutex(hMutex);
 }
 
 int main(int argc, char* argv[])
@@ -96,10 +94,15 @@ int main(int argc, char* argv[])
 
     // Create a Mutex to lock resurses
     hMutex = CreateMutexW(0, FALSE, 0);
-   
+
     // Send a message to the pipe server. 
-    while (1) {
-      //  WaitForSingleObject(hMutex, INFINITE);
+    while (1) { 
+        
+        hThread = CreateThread(0, 0, ReadThread, (LPVOID)hPipe, 0, &dwThreadId);
+        if (hThread == NULL)
+            return -1;
+
+        WaitForSingleObject(hMutex, INFINITE);
 
         // preparing a signed message
         memset(lpvMessage, 0, sizeof(lpvMessage));
@@ -134,13 +137,9 @@ int main(int argc, char* argv[])
         }
         printf("\nMessage sent to server, receiving reply as follows:\n");
 
-       // ReleaseMutex(hMutex);
-
-        hThread = CreateThread(0, 0, ReadThread, (LPVOID)hPipe, 0, &dwThreadId);
-        if (hThread == NULL)
-            return -1;
-
+        ReleaseMutex(hMutex);
     }
+
     printf("\n<End of message, press ENTER to terminate connection and exit>\n");
     _getch();
     printf("\nGoodbye!:)\n");
